@@ -1,11 +1,24 @@
 #2021-12-11 Andreas Schmitz
 #R script that acts as a job manager for other R scripts.
-#Each job must consists of a job directory (e.g. "Job1") in folder "Todo" and
-#a file "Main.R" in its job folder. The job can read/write in its job directory.
-#The Main.R must contain a line "WorkDir <- commandArgs(trailingOnly = TRUE)[1]"
-#to recieve the absolute path to its job direcory (=WorkDir) from the job manager
-#at runtime.
-
+#This script can for example be called once per minute (e.g. by cron).
+#It looks for new RScripts in subfolder "Todo" and executes these.
+#
+#Each job must consist of a job folder (e.g. "Job1") in a "Todo"-folder and
+#a file "Main.R" in its job folder (see below). Each R job (Main.R) can
+#read/write in its job directory. The Main.R must contain a line
+#"WorkDir <- commandArgs(trailingOnly = TRUE)[1]" to recieve the absolute path
+#to its job direcory (=WorkDir) from the job manager at runtime.
+#See Main.R for an example.
+#
+#Directory structure:
+#/RJobManagerPath/
+#/RJobManagerPath/Todo/Job1/Main.R
+#/RJobManagerPath/Todo/Job1/SomeOptionalInputDirectories
+#/RJobManagerPath/Todo/Job1/SomeOptionalHelpFuns.R
+#/RJobManagerPath/Todo/Job2/Main.R
+#/RJobManagerPath/Todo/Job2/SomeOptionalInputDirectories
+#/RJobManagerPath/Todo/Job2/SomeOptionalHelpFuns.R
+#etc.
 
 #init-----
 rm(list=ls())
@@ -20,14 +33,16 @@ library(tidyverse)
 
 nParallelJobsMax <- 2
 PathToSystemCommandRscript <- "/usr/local/bin/Rscript"
-RootDir <- "/mnt/ExternePlatte/Other/WorkTemp/RJobs"
+RJobManagerPath <- "/path/to/RJobManagerDir"
+
+#No changes required below------
 
 #Prepare directory structure------
-ToDoDir <- file.path(RootDir,"Todo")
-SuccessDir <- file.path(RootDir,"Success")
-InProgressDir <- file.path(RootDir,"InProgress")
-FailureDir <- file.path(RootDir,"Failure")
-LogFilePath <- file.path(RootDir,"LogFile.txt")
+ToDoDir <- file.path(RJobManagerPath,"Todo")
+SuccessDir <- file.path(RJobManagerPath,"Success")
+InProgressDir <- file.path(RJobManagerPath,"InProgress")
+FailureDir <- file.path(RJobManagerPath,"Failure")
+LogFilePath <- file.path(RJobManagerPath,"LogFile.txt")
 if ( !dir.exists(ToDoDir) ) {
   dir.create(ToDoDir, showWarnings = F)
 }
@@ -57,6 +72,26 @@ Log <- function(Text) {
   close(LogFileHandle)
 }
 
+MoveFolder <- function(
+  MoveFrom,
+  MoveTo
+) {
+  #A simple rename() does not always work across discs (external and internal disk)
+  dir.create(
+    path = MoveTo,
+    recursive = T,
+    showWarnings = F
+  )
+  file.copy(
+    from = list.files(MoveFrom, full.names = TRUE), 
+    to = MoveTo,
+    recursive = TRUE
+  )
+  unlink(
+    x = MoveFrom,
+    recursive = T
+  )
+}
 
 #Check for new job existing------
 Log("JobManager started.")
@@ -101,17 +136,20 @@ Log(paste("Found Job:", CurrentJobName))
 
 #Move Job to InProgressDir-----
 CurrentJobDirBasename <- paste0(GetTimeStamp()," ",CurrentJobName)
-file.rename(
-  from = file.path(ToDoDir, CurrentJobName),
-  to = file.path(InProgressDir, CurrentJobDirBasename)
+MoveFrom = file.path(ToDoDir, CurrentJobName)
+MoveTo = file.path(InProgressDir, CurrentJobDirBasename)
+MoveFolder(
+  MoveFrom = MoveFrom,
+  MoveTo = MoveTo
 )
+
 
 #Check for Main.R------
 RScriptPath <- file.path(InProgressDir, CurrentJobDirBasename,"Main.R")
 if ( !file.exists(RScriptPath)) {
-  file.rename(
-    from = file.path(InProgressDir, CurrentJobDirBasename),
-    to = file.path(FailureDir, CurrentJobDirBasename)
+  MoveFolder(
+    MoveFrom = file.path(InProgressDir, CurrentJobDirBasename),
+    MoveTo = file.path(FailureDir, CurrentJobDirBasename)
   )
   Log(paste("No Main.R found for Job:", CurrentJobName," Quitting."))
   quit()
@@ -136,15 +174,15 @@ tryCatch(
 )
 if ( Success ) {
   Log(paste("Job:",CurrentJobName,"successful."))
-  file.rename(
-    from = file.path(InProgressDir, CurrentJobDirBasename),
-    to = file.path(SuccessDir, CurrentJobDirBasename)
+  MoveFolder(
+    MoveFrom = file.path(InProgressDir, CurrentJobDirBasename),
+    MoveTo = file.path(SuccessDir, CurrentJobDirBasename)
   )
 } else {
   Log(paste("Job:",CurrentJobName,"failed."))
-  file.rename(
-    from = file.path(InProgressDir, CurrentJobDirBasename),
-    to = file.path(FailureDir, CurrentJobDirBasename)
+  MoveFolder(
+    MoveFrom = file.path(InProgressDir, CurrentJobDirBasename),
+    MoveTo = file.path(FailureDir, CurrentJobDirBasename)
   )
 }
 
