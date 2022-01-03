@@ -11,7 +11,7 @@
 #See Main.R for an example.
 #
 #Directory structure:
-#/RJobManagerPath/
+#/RJobManagerPath/RJobManager.R
 #/RJobManagerPath/Todo/Job1/Main.R
 #/RJobManagerPath/Todo/Job1/SomeOptionalInputDirectories
 #/RJobManagerPath/Todo/Job1/SomeOptionalHelpFuns.R
