@@ -7,7 +7,9 @@
 #
 #This script be called for example once per minute (e.g. by cron). It looks for
 #a new R job (must be located in subfolder "Todo") and executes it, if the
-#maximum number of jobs running in parallel is not exceeded.
+#maximum number of jobs running in parallel is not exceeded. Each instance of
+#this script handles one R job and quits on success, on failure or if no job
+#to process was found.
 #
 #Each job must consist of a job folder (e.g. "Job1") in a "Todo"-folder and
 #a file "Main.R" in the job folder (see below). Each R job (Main.R) can
