@@ -1,10 +1,16 @@
 #2021-12-11 Andreas Schmitz
 #R script that acts as a job manager for other R scripts.
-#This script can for example be called once per minute (e.g. by cron).
-#It looks for new RScripts in subfolder "Todo" and executes these.
+#Use case: Schedule a number of R scripts that potentially take long to finish
+#on a remote machine and automatically run them one after another. The maximum
+#number of jobs running in parallel can be controlled by parameter
+#"nParallelJobsMax" (see below).
+#
+#This script be called for example once per minute (e.g. by cron). It looks for
+#a new R job (must be located in subfolder "Todo") and executes it, if the
+#maximum number of jobs running in parallel is not exceeded.
 #
 #Each job must consist of a job folder (e.g. "Job1") in a "Todo"-folder and
-#a file "Main.R" in its job folder (see below). Each R job (Main.R) can
+#a file "Main.R" in the job folder (see below). Each R job (Main.R) can
 #read/write in its job directory. The Main.R must contain a line
 #"WorkDir <- commandArgs(trailingOnly = TRUE)[1]" to recieve the absolute path
 #to its job direcory (=WorkDir) from the job manager at runtime.
